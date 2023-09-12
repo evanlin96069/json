@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "arena.h"
+
 typedef enum JsonType {
     JSON_ERROR,
     JSON_NULL,
@@ -30,28 +32,18 @@ struct JsonValue {
     };
 };
 
-typedef struct JsonArray {
-    struct JsonArray* next;
-    JsonValue* value;
-} JsonArray;
+struct JsonArray {
+    size_t size;
+    JsonValue** data;
+};
 
-typedef struct JsonObject {
+struct JsonObject {
     struct JsonObject* next;
     char* key;
     JsonValue* value;
-} JsonObject;
-
-typedef struct Arena {
-    size_t capacity;
-    size_t size;
-    uint8_t* data;
-} Arena;
-
-void arenaInit(Arena* arena, size_t capacity);
-void* arenaAlloc(Arena* arena, size_t size);
-void arenaReset(Arena* arena);
-void arenaDeinit(Arena* arena);
+};
 
 JsonValue* jsonParse(const char* text, Arena* arena);
+JsonValue* jsonObjectFind(const JsonObject* object, const char* key);
 
 #endif

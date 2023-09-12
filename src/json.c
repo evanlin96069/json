@@ -1,35 +1,15 @@
 #include "json.h"
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void arenaInit(Arena* arena, size_t capacity) {
-    arena->capacity = capacity;
-    arena->size = 0;
-    arena->data = malloc(capacity);
-    assert(arena->data);
-}
+#define JSON_ERROR_SIZE 64
+#define JSON_STRING_SIZE 16
+#define JSON_ARRAY_SIZE 16
 
-void* arenaAlloc(Arena* arena, size_t size) {
-    assert(arena->size + size < arena->capacity);
-    void* result = arena->data + arena->size;
-    arena->size += size;
-    return result;
-}
-
-void arenaReset(Arena* arena) { arena->size = 0; }
-
-void arenaDeinit(Arena* arena) {
-    arena->size = 0;
-    arena->capacity = 0;
-    free(arena->data);
-    arena->data = NULL;
-}
-
-typedef enum TokenType {
+typedef enum JsonTokenType {
     TOKEN_EMPTY = 0,
     TOKEN_ERROR,
     TOKEN_NULL,
@@ -42,36 +22,34 @@ typedef enum TokenType {
     TOKEN_RBRACKET = ']',
     TOKEN_COMMA = ',',
     TOKEN_COLON = ':',
-} TokenType;
+} JsonTokenType;
 
-typedef struct Token {
-    TokenType type;
+typedef struct JsonToken {
+    JsonTokenType type;
     union {
         double number;
         bool boolean;
         char* string;
     };
-} Token;
+} JsonToken;
 
-#define JSON_STRING_SIZE 64
-
-static Token tokenError(Arena* arena, const char* fmt, ...) {
-    Token token;
+static JsonToken tokenError(Arena* arena, const char* fmt, ...) {
+    JsonToken token;
     token.type = TOKEN_ERROR;
-    token.string = arenaAlloc(arena, JSON_STRING_SIZE);
+    token.string = arenaAlloc(arena, JSON_ERROR_SIZE);
 
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(token.string, JSON_STRING_SIZE, fmt, ap);
+    vsnprintf(token.string, JSON_ERROR_SIZE, fmt, ap);
     va_end(ap);
 
     return token;
 }
 
-static Token nextToken(const char* text, Arena* arena) {
+static JsonToken nextToken(const char* text, Arena* arena) {
     static const char* start = NULL;
     static const char* p = NULL;
-    Token token = {0};
+    JsonToken token = {0};
     char c;
 
     if (text) {
@@ -214,9 +192,9 @@ static Token nextToken(const char* text, Arena* arena) {
                 }
 
                 if (size + 2 >= capacity) {
-                    // Hack: Realloc the string
-                    arenaAlloc(arena, JSON_STRING_SIZE);
-                    capacity += JSON_STRING_SIZE;
+                    token.string = arenaRealloc(arena, token.string, capacity,
+                                                capacity * 2);
+                    capacity *= 2;
                 }
 
                 token.string[size++] = c;
@@ -276,11 +254,11 @@ static Token nextToken(const char* text, Arena* arena) {
 static JsonValue* jsonError(Arena* arena, const char* fmt, ...) {
     JsonValue* value = arenaAlloc(arena, sizeof(JsonValue));
     value->type = JSON_ERROR;
-    value->string = arenaAlloc(arena, JSON_STRING_SIZE);
+    value->string = arenaAlloc(arena, JSON_ERROR_SIZE);
 
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(value->string, JSON_STRING_SIZE, fmt, ap);
+    vsnprintf(value->string, JSON_ERROR_SIZE, fmt, ap);
     va_end(ap);
 
     return value;
@@ -290,7 +268,7 @@ static JsonValue* parseArray(Arena* arena);
 
 static JsonValue* parseObject(Arena* arena);
 
-static JsonValue* parseValue(Token token, Arena* arena) {
+static JsonValue* parseValue(JsonToken token, Arena* arena) {
     JsonValue* value;
     if (token.type == TOKEN_LBRACE) {
         value = parseObject(arena);
@@ -329,7 +307,7 @@ static JsonValue* parseValue(Token token, Arena* arena) {
 }
 
 static JsonValue* parseObject(Arena* arena) {
-    Token token = nextToken(NULL, arena);
+    JsonToken token = nextToken(NULL, arena);
 
     JsonObject head = {0};
     JsonObject* curr = &head;
@@ -378,12 +356,14 @@ static JsonValue* parseObject(Arena* arena) {
 }
 
 static JsonValue* parseArray(Arena* arena) {
-    Token token = nextToken(NULL, arena);
-    JsonArray head = {0};
-    JsonArray* curr = &head;
+    JsonToken token = nextToken(NULL, arena);
+    JsonArray* array = arenaAlloc(arena, sizeof(JsonArray));
+    size_t capacity = JSON_ARRAY_SIZE;
+    array->data = arenaAlloc(arena, sizeof(JsonValue*) * capacity);
+    array->size = 0;
 
     while (token.type != TOKEN_RBRACKET) {
-        if (curr != &head) {
+        if (array->size > 0) {
             if (token.type == TOKEN_COMMA) {
                 token = nextToken(NULL, arena);
             } else {
@@ -391,24 +371,34 @@ static JsonValue* parseArray(Arena* arena) {
                                  "Expected ',' or ']' after array element");
             }
         }
-        curr->next = arenaAlloc(arena, sizeof(JsonArray));
-        curr = curr->next;
-        curr->next = NULL;
-        curr->value = parseValue(token, arena);
 
-        if (curr->value->type == JSON_ERROR)
-            return curr->value;
+        JsonValue* data = parseValue(token, arena);
+        if (data->type == JSON_ERROR)
+            return data;
+
+        if (array->size + 1 > capacity) {
+            size_t new_capacity = capacity * 2;
+            array->data =
+                arenaRealloc(arena, array->data, sizeof(JsonValue*) * capacity,
+                             sizeof(JsonValue*) * new_capacity);
+            capacity = new_capacity;
+            ;
+        }
+
+        array->data[array->size] = data;
+        array->size++;
+
         token = nextToken(NULL, arena);
     }
 
     JsonValue* value = arenaAlloc(arena, sizeof(JsonValue));
     value->type = JSON_ARRAY;
-    value->array = head.next;
+    value->array = array;
     return value;
 }
 
 JsonValue* jsonParse(const char* text, Arena* arena) {
-    Token token = nextToken(text, arena);
+    JsonToken token = nextToken(text, arena);
     JsonValue* value = parseValue(token, arena);
     if (value->type == JSON_ERROR)
         return value;
@@ -419,4 +409,14 @@ JsonValue* jsonParse(const char* text, Arena* arena) {
         return jsonError(arena, "Unexpected non-whitespace character");
     }
     return value;
+}
+
+JsonValue* jsonObjectFind(const JsonObject* object, const char* key) {
+    while (object) {
+        if (strcmp(object->key, key) == 0) {
+            return object->value;
+        }
+        object = object->next;
+    }
+    return NULL;
 }

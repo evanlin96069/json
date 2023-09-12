@@ -22,11 +22,10 @@ static void jsonPrintInner(const JsonValue* value, int indent) {
             printf("%*s\"%s\"\n", indent * 2, "", value->string);
             break;
         case JSON_ARRAY: {
-            const JsonArray* curr = value->array;
+            const JsonArray* array = value->array;
             printf("%*s[\n", indent * 2, "");
-            while (curr) {
-                jsonPrintInner(curr->value, indent + 1);
-                curr = curr->next;
+            for (size_t i = 0; i < array->size; i++) {
+                jsonPrintInner(array->data[i], indent + 1);
             }
             printf("%*s]\n", indent * 2, "");
         } break;
@@ -40,6 +39,9 @@ static void jsonPrintInner(const JsonValue* value, int indent) {
             }
             printf("%*s}\n", indent * 2, "");
         } break;
+        default:
+            fprintf(stderr, "Unknown type\n");
+            return;
     }
 }
 
@@ -51,7 +53,7 @@ int main(int argc, char** argv) {
     char* buffer;
 
     Arena arena;
-    arenaInit(&arena, 1 << 24);
+    arenaInit(&arena, 1 << 12);
 
     for (int i = 1; i < argc; i++) {
         printf("File: %s\n", argv[i]);
