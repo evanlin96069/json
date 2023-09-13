@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     char* buffer;
 
     Arena arena;
-    arenaInit(&arena, 1 << 12);
+    arenaInit(&arena, 1 << 12, NULL);
 
     for (int i = 1; i < argc; i++) {
         printf("File: %s\n", argv[i]);

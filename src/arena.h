@@ -6,20 +6,27 @@
 
 #define ARENA_ALIGNMENT 16
 
+typedef struct Allocator {
+    void* (*malloc)(size_t size);
+    void (*free)(void* ptr);
+} Allocator;
+
 typedef struct ArenaBlock {
     uint32_t size;
     uint32_t capacity;
     void* data;
+    struct ArenaBlock* next;
 } ArenaBlock;
 
 typedef struct Arena {
     ArenaBlock* blocks;
-    uint32_t block_count;
+    ArenaBlock* current_block;
+    ArenaBlock* last_block;
+    Allocator* allocator;
     uint32_t first_block_size;
-    uint32_t current_block;
 } Arena;
 
-void arenaInit(Arena* arena, size_t first_block_size);
+void arenaInit(Arena* arena, size_t first_block_size, Allocator* allocator);
 void arenaDeinit(Arena* arena);
 void arenaReset(Arena* arena);
 

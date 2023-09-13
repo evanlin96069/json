@@ -160,9 +160,7 @@ static JsonToken nextToken(const char* text, Arena* arena) {
                     c = *p++;
                     switch (c) {
                         case '"':
-                            break;
                         case '\\':
-                            break;
                         case '/':
                             break;
                         case 'b':
@@ -191,13 +189,14 @@ static JsonToken nextToken(const char* text, Arena* arena) {
                     }
                 }
 
-                if (size + 2 >= capacity) {
+                if (size + 2 > capacity) {
                     token.string = arenaRealloc(arena, token.string, capacity,
                                                 capacity * 2);
                     capacity *= 2;
                 }
 
-                token.string[size++] = c;
+                token.string[size] = c;
+                size++;
             }
 
             token.string[size] = '\0';
@@ -382,7 +381,6 @@ static JsonValue* parseArray(Arena* arena) {
                 arenaRealloc(arena, array->data, sizeof(JsonValue*) * capacity,
                              sizeof(JsonValue*) * new_capacity);
             capacity = new_capacity;
-            ;
         }
 
         array->data[array->size] = data;
