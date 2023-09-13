@@ -18,7 +18,8 @@ BUILD_DIR = build
 SRC_DIR = src
 INCLUDE_DIR = include
 TEST_DIR = test
-LIB_BIN = libjson.a
+LIB_DIR = lib
+LIB_BIN = $(LIB_DIR)/libjson.a
 
 CFLAGS += -I$(INCLUDE_DIR)
 
@@ -37,6 +38,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 $(LIB_BIN): $(OBJS)
+	@$(call mkdir, $(LIB_DIR))
 	$(AR) rcs $(LIB_BIN) $(OBJS)
 
 all: $(LIB_BIN)
