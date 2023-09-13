@@ -1,3 +1,3 @@
-# Example
+# json
 
-Example README.md
+A simple JSON parser in C
