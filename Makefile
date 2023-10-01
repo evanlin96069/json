@@ -11,7 +11,7 @@ endif
 
 # Compiler and compiler flags
 CC = gcc
-CFLAGS = -O2
+CFLAGS = -O2 -Wall -Wextra -pedantic -std=c11
 
 # Directories
 BUILD_DIR = build
@@ -50,7 +50,7 @@ test: $(LIB_BIN)
 
 # Format all files
 format:
-	clang-format -i $(INCLUDE_DIR)/*.h $(SRC_DIR)/*.c
+	clang-format -i $(INCLUDE_DIR)/*.h $(SRC_DIR)/*.c $(TEST_DIR)/*.h $(TEST_DIR)/*.c
 
 # Clean
 clean:
