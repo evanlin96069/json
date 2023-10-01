@@ -103,9 +103,10 @@ TEST(good_json3, "Parse number") {
     JsonValue* value = jsonParse(buffer, &arena);
     ASSERT(value->type == JSON_ARRAY);
     ASSERT(value->array->size == 6);
-    for (int i = 0; i < value->array->size; i++) {
+    for (size_t i = 0; i < value->array->size; i++) {
         ASSERT(value->array->data[i]->type == JSON_NUMBER);
-        ASSERT(compareNumber(value->array->data[i]->number, gold[i], EPSILON) == 0);
+        ASSERT(compareNumber(value->array->data[i]->number, gold[i], EPSILON) ==
+               0);
     }
     arenaDeinit(&arena);
 }
@@ -133,7 +134,7 @@ TEST(good_json5, "Parse string") {
     JsonValue* value = jsonParse(buffer, &arena);
     ASSERT(value->type == JSON_ARRAY);
     ASSERT(value->array->size == 3);
-    for (int i = 0; i < value->array->size; i++) {
+    for (size_t i = 0; i < value->array->size; i++) {
         ASSERT(value->array->data[i]->type == JSON_STRING);
         ASSERT(strcmp(value->array->data[i]->string, gold[i]) == 0);
     }
@@ -156,12 +157,8 @@ TEST(good_json6, "Parse object") {
 }
 
 Test* json_good_tests[] = {
-    &good_json1,
-    &good_json2,
-    &good_json3,
-    &good_json4,
-    &good_json5,
-    &good_json6,
+    &good_json1, &good_json2, &good_json3,
+    &good_json4, &good_json5, &good_json6,
 };
 
 TEST(bad_json1, "Extra comma") {
@@ -245,14 +242,10 @@ TEST(bad_json5, "Empty input") {
 }
 
 Test* json_bad_tests[] = {
-    &bad_json1,
-    &bad_json2,
-    &bad_json3,
-    &bad_json4,
-    &bad_json5,
+    &bad_json1, &bad_json2, &bad_json3, &bad_json4, &bad_json5,
 };
 
-int main(int argc, char* argv[]) {
+int main(void) {
     RUN_ALL_TESTS(arena_tests, "arena");
     RUN_ALL_TESTS(json_good_tests, "good JSON");
     RUN_ALL_TESTS(json_bad_tests, "bad JSON");

@@ -13,7 +13,7 @@ void arenaInit(Arena* arena, size_t first_block_size, Allocator* allocator) {
     if (!allocator)
         allocator = &default_allocator;
 
-    arena->allocator= allocator;
+    arena->allocator = allocator;
     arena->first_block_size = first_block_size;
 }
 
