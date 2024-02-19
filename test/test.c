@@ -2,13 +2,14 @@
 
 #include <string.h>
 
-#include "json.h"
+#define JSON_IMPLEMENTATION
+#include "../json.h"
 
-TEST(arena1, "arenaAlloc") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    uint8_t* ptr1 = arenaAlloc(&arena, 10);
-    uint8_t* ptr2 = arenaAlloc(&arena, 10);
+TEST(arena1, "Arena alloc") {
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    uint8_t* ptr1 = json_arena_alloc(&arena, 10);
+    uint8_t* ptr2 = json_arena_alloc(&arena, 10);
     ASSERT(ptr1 != ptr2);
     for (int i = 0; i < 10; i++) {
         ptr1[i] = 87;
@@ -18,39 +19,39 @@ TEST(arena1, "arenaAlloc") {
         ASSERT(ptr1[i] == 87);
         ASSERT(ptr2[i] == 63);
     }
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
-TEST(arena2, "arenaReset") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    uint8_t* ptr1 = arenaAlloc(&arena, 10);
-    uint8_t* ptr2 = arenaAlloc(&arena, 10);
+TEST(arena2, "Arena reset") {
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    uint8_t* ptr1 = json_arena_alloc(&arena, 10);
+    uint8_t* ptr2 = json_arena_alloc(&arena, 10);
     ASSERT(ptr1 != ptr2);
-    arenaReset(&arena);
-    uint8_t* ptr3 = arenaAlloc(&arena, 10);
+    json_arena_reset(&arena);
+    uint8_t* ptr3 = json_arena_alloc(&arena, 10);
     ASSERT(ptr1 == ptr3);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
-TEST(arena3, "arenaRealloc") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    uint8_t* ptr1 = arenaAlloc(&arena, 10);
+TEST(arena3, "Arena realloc") {
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    uint8_t* ptr1 = json_arena_alloc(&arena, 10);
     for (int i = 0; i < 10; i++) {
         ptr1[i] = 87;
     }
     // in-place realloc
-    uint8_t* ptr2 = arenaRealloc(&arena, ptr1, 10, 30);
+    uint8_t* ptr2 = json_arena_realloc(&arena, ptr1, 10, 30);
     ASSERT(ptr1 == ptr2);
-    arenaAlloc(&arena, 10);
+    json_arena_alloc(&arena, 10);
     // not in-place realloc
-    uint8_t* ptr3 = arenaRealloc(&arena, ptr1, 30, 40);
+    uint8_t* ptr3 = json_arena_realloc(&arena, ptr1, 30, 40);
     ASSERT(ptr1 != ptr3);
     for (int i = 0; i < 10; i++) {
         ASSERT(ptr3[i] == 87);
     }
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 Test* arena_tests[] = {
@@ -61,25 +62,25 @@ Test* arena_tests[] = {
 
 TEST(good_json1, "Parse null") {
     const char* buffer = "null";
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse(buffer, &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse(buffer, &arena);
     ASSERT(value->type == JSON_NULL);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(good_json2, "Parse array") {
     const char* buffer = "[null, null, null]";
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse(buffer, &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse(buffer, &arena);
     ASSERT(value->type == JSON_ARRAY);
     ASSERT(value->array->size == 3);
 
     ASSERT(value->array->data[0]->type == JSON_NULL);
     ASSERT(value->array->data[1]->type == JSON_NULL);
     ASSERT(value->array->data[2]->type == JSON_NULL);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 #define EPSILON 1e-10
@@ -98,9 +99,9 @@ static int compareNumber(double a, double b, double epsilon) {
 TEST(good_json3, "Parse number") {
     const char* buffer = "[3, 3.14, 1e5, -5.2, -1E-4, 3.1e+4]";
     double gold[] = {3, 3.14, 1e5, -5.2, -1E-4, 3.1e+4};
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse(buffer, &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse(buffer, &arena);
     ASSERT(value->type == JSON_ARRAY);
     ASSERT(value->array->size == 6);
     for (size_t i = 0; i < value->array->size; i++) {
@@ -108,14 +109,14 @@ TEST(good_json3, "Parse number") {
         ASSERT(compareNumber(value->array->data[i]->number, gold[i], EPSILON) ==
                0);
     }
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(good_json4, "Parse boolean") {
     const char* buffer = "[true, false]";
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse(buffer, &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse(buffer, &arena);
     ASSERT(value->type == JSON_ARRAY);
     ASSERT(value->array->size == 2);
 
@@ -123,37 +124,37 @@ TEST(good_json4, "Parse boolean") {
     ASSERT(value->array->data[0]->boolean == true);
     ASSERT(value->array->data[1]->type == JSON_BOOLEAN);
     ASSERT(value->array->data[1]->boolean == false);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(good_json5, "Parse string") {
     const char* buffer = "[\"string\", \"newline\\n\", \"tab\\t\"]";
     const char* gold[] = {"string", "newline\n", "tab\t"};
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse(buffer, &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse(buffer, &arena);
     ASSERT(value->type == JSON_ARRAY);
     ASSERT(value->array->size == 3);
     for (size_t i = 0; i < value->array->size; i++) {
         ASSERT(value->array->data[i]->type == JSON_STRING);
         ASSERT(strcmp(value->array->data[i]->string, gold[i]) == 0);
     }
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(good_json6, "Parse object") {
     const char* buffer = "{\"key1\": \"string\", \"key2\": 5}";
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse(buffer, &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse(buffer, &arena);
     ASSERT(value->type == JSON_OBJECT);
-    JsonValue* key1 = jsonObjectFind(value->object, "key1");
+    JsonValue* key1 = json_object_find(value->object, "key1");
     ASSERT(key1->type == JSON_STRING);
     ASSERT(strcmp(key1->string, "string") == 0);
-    JsonValue* key2 = jsonObjectFind(value->object, "key2");
+    JsonValue* key2 = json_object_find(value->object, "key2");
     ASSERT(key2->type == JSON_NUMBER);
     ASSERT(key2->number == 5);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 Test* json_good_tests[] = {
@@ -162,83 +163,83 @@ Test* json_good_tests[] = {
 };
 
 TEST(bad_json1, "Extra comma") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
     JsonValue* value;
-    value = jsonParse("{\"test\":3,}", &arena);
+    value = json_parse("{\"test\":3,}", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("[1,2,3,]", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("[1,2,3,]", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("[1,2,3],", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("[1,2,3],", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("[,\"test\"]", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("[,\"test\"]", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("[1,2,,]", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("[1,2,,]", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(bad_json2, "Bad string") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
     JsonValue* value;
-    value = jsonParse("\'single qoute\'", &arena);
+    value = json_parse("\'single qoute\'", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("\"tabs\tin\tstring\"", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("\"tabs\tin\tstring\"", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("\"Invalid \\x32\"", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("\"Invalid \\x32\"", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(bad_json3, "Bad number") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
     JsonValue* value;
-    value = jsonParse("0x32", &arena);
+    value = json_parse("0x32", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("032", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("032", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("0e+-1", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("0e+-1", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("0e+", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("0e+", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(bad_json4, "Missing token") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
     JsonValue* value;
-    value = jsonParse("{\"key\" 5}", &arena);
+    value = json_parse("{\"key\" 5}", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("[1,2,3", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("[1,2,3", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("{\"key\": 5", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("{\"key\": 5", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaReset(&arena);
-    value = jsonParse("[\"test]", &arena);
+    json_arena_reset(&arena);
+    value = json_parse("[\"test]", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 TEST(bad_json5, "Empty input") {
-    Arena arena;
-    arenaInit(&arena, 1 << 10, NULL);
-    JsonValue* value = jsonParse("", &arena);
+    JsonArena arena;
+    json_arena_init(&arena, 1 << 10);
+    JsonValue* value = json_parse("", &arena);
     ASSERT(value->type == JSON_ERROR);
-    arenaDeinit(&arena);
+    json_arena_deinit(&arena);
 }
 
 Test* json_bad_tests[] = {
